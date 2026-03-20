@@ -1,143 +1,162 @@
-import ast
-import asyncio
-from typing import Dict, List, Optional, Union
-from dataclasses import dataclass
-from collections import defaultdict
-import re
+"""DevMind AI code analyzer module for evaluating code quality and complexity."""
 
-@dataclass
-class CodeAnalysis:
-    complexity: int
-    sentiment: float
-    patterns: Dict[str, int]
-    suggestions: List[str]
+from typing import Dict, List, Optional
+import ast
+import math
 
 class CodeAnalyzer:
     def __init__(self):
-        self.negative_patterns = [
-            r'hack', r'todo', r'fixme', r'workaround',
-            r'temporary', r'legacy', r'deprecated'
-        ]
-        self.positive_patterns = [
-            r'optimize', r'improve', r'enhance', r'clean',
-            r'refactor', r'simplify', r'modernize'
-        ]
+        self.metrics = {}
 
-    async def analyze_code(self, code: str) -> CodeAnalysis:
-        """Analyzes code for complexity, patterns and generates suggestions."""
-        tasks = [
-            self._calculate_complexity(code),
-            self._analyze_sentiment(code),
-            self._detect_patterns(code)
-        ]
-        complexity, sentiment, patterns = await asyncio.gather(*tasks)
-        suggestions = await self._generate_suggestions(complexity, sentiment, patterns)
-        
-        return CodeAnalysis(
-            complexity=complexity,
-            sentiment=sentiment,
-            patterns=patterns,
-            suggestions=suggestions
-        )
-
-    async def _calculate_complexity(self, code: str) -> int:
-        """Calculate cyclomatic complexity of the code."""
+    def analyze_code(self, code: str) -> Dict:
+        """Analyze code and return comprehensive metrics."""
         try:
             tree = ast.parse(code)
-            visitor = ComplexityVisitor()
-            visitor.visit(tree)
-            return visitor.complexity
-        except:
-            return 0
+            self.metrics = {
+                'complexity': self._calculate_complexity(tree),
+                'maintainability': self._calculate_maintainability(tree),
+                'code_smells': self._detect_code_smells(tree),
+                'documentation_score': self._assess_documentation(tree),
+                'security_issues': self._check_security(tree)
+            }
+            return self.metrics
+        except SyntaxError:
+            return {'error': 'Invalid Python syntax'}
 
-    async def _analyze_sentiment(self, code: str) -> float:
-        """Analyze code sentiment based on patterns and comments."""
-        sentiment = 0.0
+    def _calculate_complexity(self, tree: ast.AST) -> Dict:
+        """Calculate cyclomatic complexity and cognitive complexity."""
+        complexity = {'cyclomatic': 1, 'cognitive': 0}
         
-        # Analyze comments
-        comments = re.findall(r'#.*$', code, re.MULTILINE)
-        for comment in comments:
-            sentiment += sum(1 for p in self.positive_patterns if re.search(p, comment.lower()))
-            sentiment -= sum(1 for p in self.negative_patterns if re.search(p, comment.lower()))
+        class ComplexityVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.cyclomatic = 1
+                self.cognitive = 0
+                self.nesting = 0
 
-        # Analyze variable names and function names
-        names = re.findall(r'\b(?:def|class|var)\s+([a-zA-Z_]\w*)', code)
-        for name in names:
-            sentiment += 0.5 if any(p in name.lower() for p in ['good', 'better', 'best', 'improve'])
-            sentiment -= 0.5 if any(p in name.lower() for p in ['temp', 'hack', 'fix'])
+            def visit_If(self, node):
+                self.cyclomatic += len(node.orelse) + 1
+                self.cognitive += (1 + self.nesting)
+                self.nesting += 1
+                self.generic_visit(node)
+                self.nesting -= 1
 
-        return sentiment
+            def visit_While(self, node):
+                self.cyclomatic += 1
+                self.cognitive += (1 + self.nesting)
+                self.nesting += 1
+                self.generic_visit(node)
+                self.nesting -= 1
 
-    async def _detect_patterns(self, code: str) -> Dict[str, int]:
-        """Detect common code patterns and anti-patterns."""
-        patterns = defaultdict(int)
+            def visit_For(self, node):
+                self.cyclomatic += 1
+                self.cognitive += (1 + self.nesting)
+                self.nesting += 1
+                self.generic_visit(node)
+                self.nesting -= 1
+
+        visitor = ComplexityVisitor()
+        visitor.visit(tree)
+        complexity['cyclomatic'] = visitor.cyclomatic
+        complexity['cognitive'] = visitor.cognitive
+        return complexity
+
+    def _calculate_maintainability(self, tree: ast.AST) -> float:
+        """Calculate maintainability index based on various metrics."""
+        loc = len(ast.unparse(tree).splitlines())
+        complexity = self._calculate_complexity(tree)['cyclomatic']
         
-        # Detect long functions
-        functions = re.finditer(r'def\s+\w+\s*\([^)]*\):\s*(?:[^\n]*\n+)+', code)
-        for func in functions:
-            lines = func.group().count('\n')
-            if lines > 20:
-                patterns['long_functions'] += 1
+        # Maintainability Index formula
+        halstead_volume = math.log(loc) * complexity
+        mi = max(0, (171 - 5.2 * math.log(halstead_volume) - 0.23 * complexity - 16.2 * math.log(loc)) * 100 / 171)
+        return round(mi, 2)
 
-        # Detect nested loops
-        nested_loops = len(re.findall(r'\s*for.*:\s*\n+\s*for.*:', code))
-        patterns['nested_loops'] = nested_loops
+    def _detect_code_smells(self, tree: ast.AST) -> List[Dict]:
+        """Detect common code smells and anti-patterns."""
+        smells = []
+        
+        class SmellDetector(ast.NodeVisitor):
+            def visit_FunctionDef(self, node):
+                # Check function length
+                if len(node.body) > 20:
+                    smells.append({
+                        'type': 'long_function',
+                        'message': f'Function {node.name} is too long ({len(node.body)} lines)',
+                        'line': node.lineno
+                    })
+                
+                # Check number of parameters
+                args = len(node.args.args)
+                if args > 5:
+                    smells.append({
+                        'type': 'too_many_parameters',
+                        'message': f'Function {node.name} has too many parameters ({args})',
+                        'line': node.lineno
+                    })
+                self.generic_visit(node)
 
-        # Detect large try-except blocks
-        try_blocks = re.finditer(r'try:\s*(?:[^\n]*\n+)+', code)
-        for block in try_blocks:
-            lines = block.group().count('\n')
-            if lines > 15:
-                patterns['large_try_blocks'] += 1
+        SmellDetector().visit(tree)
+        return smells
 
-        return dict(patterns)
+    def _assess_documentation(self, tree: ast.AST) -> float:
+        """Assess documentation coverage and quality."""
+        class DocVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.doc_count = 0
+                self.total_count = 0
 
-    async def _generate_suggestions(self
-        self, complexity: int,
-        sentiment: float,
-        patterns: Dict[str, int]
-    ) -> List[str]:
-        """Generate improvement suggestions based on analysis."""
-        suggestions = []
+            def visit_FunctionDef(self, node):
+                self.total_count += 1
+                if ast.get_docstring(node):
+                    self.doc_count += 1
+                self.generic_visit(node)
 
-        if complexity > 10:
-            suggestions.append(
-                'Consider breaking down complex functions into smaller, more manageable pieces'
-            )
+            def visit_ClassDef(self, node):
+                self.total_count += 1
+                if ast.get_docstring(node):
+                    self.doc_count += 1
+                self.generic_visit(node)
 
-        if patterns.get('long_functions', 0) > 0:
-            suggestions.append(
-                'Some functions are too long. Consider extracting functionality into helper methods'
-            )
+        visitor = DocVisitor()
+        visitor.visit(tree)
+        return round(visitor.doc_count / max(1, visitor.total_count) * 100, 2)
 
-        if patterns.get('nested_loops', 0) > 0:
-            suggestions.append(
-                'Nested loops detected. Consider restructuring to improve performance'
-            )
+    def _check_security(self, tree: ast.AST) -> List[Dict]:
+        """Check for basic security issues."""
+        issues = []
+        
+        class SecurityVisitor(ast.NodeVisitor):
+            def visit_Call(self, node):
+                if isinstance(node.func, ast.Name):
+                    if node.func.id in ['eval', 'exec']:
+                        issues.append({
+                            'type': 'security_risk',
+                            'message': f'Usage of {node.func.id}() is potentially dangerous',
+                            'line': node.lineno
+                        })
+                self.generic_visit(node)
 
-        if sentiment < 0:
-            suggestions.append(
-                'Code contains several temporary solutions or workarounds. Consider proper refactoring'
-            )
+        SecurityVisitor().visit(tree)
+        return issues
 
-        return suggestions
+    def get_summary(self) -> str:
+        """Generate a human-readable summary of the analysis."""
+        if not self.metrics:
+            return "No analysis performed yet."
 
-class ComplexityVisitor(ast.NodeVisitor):
-    def __init__(self):
-        self.complexity = 1
+        summary = ["Code Analysis Summary:"]
+        summary.append(f"Maintainability Index: {self.metrics['maintainability']}/100")
+        summary.append(f"Cyclomatic Complexity: {self.metrics['complexity']['cyclomatic']}")
+        summary.append(f"Cognitive Complexity: {self.metrics['complexity']['cognitive']}")
+        summary.append(f"Documentation Coverage: {self.metrics['documentation_score']}%")
+        
+        if self.metrics['code_smells']:
+            summary.append("\nCode Smells:")
+            for smell in self.metrics['code_smells']:
+                summary.append(f"- {smell['message']}")
 
-    def visit_If(self, node):
-        self.complexity += 1
-        self.generic_visit(node)
+        if self.metrics['security_issues']:
+            summary.append("\nSecurity Issues:")
+            for issue in self.metrics['security_issues']:
+                summary.append(f"- {issue['message']}")
 
-    def visit_While(self, node):
-        self.complexity += 1
-        self.generic_visit(node)
-
-    def visit_For(self, node):
-        self.complexity += 1
-        self.generic_visit(node)
-
-    def visit_ExceptHandler(self, node):
-        self.complexity += 1
-        self.generic_visit(node)
+        return '\n'.join(summary)
