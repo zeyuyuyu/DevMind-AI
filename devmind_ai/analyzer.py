@@ -1,116 +1,116 @@
-"""DevMind AI code analyzer module for providing intelligent code insights."""
-
-from typing import Dict, List, Optional
 import ast
-import statistics
+import os
+from typing import Dict, List, Optional
+from dataclasses import dataclass
+
+@dataclass
+class CodeMetrics:
+    cyclomatic_complexity: int
+    number_of_lines: int
+    number_of_functions: int
+    cognitive_complexity: int
+    maintainability_index: float
 
 class CodeAnalyzer:
-    def __init__(self):
-        self.metrics = {}
-        self.suggestions = []
-
-    def analyze_code(self, code: str) -> Dict:
-        """Analyze code and return metrics and suggestions."""
-        try:
-            tree = ast.parse(code)
-            self._reset_analysis()
-            self._collect_metrics(tree)
-            self._generate_suggestions()
-            return {
-                'metrics': self.metrics,
-                'suggestions': self.suggestions
-            }
-        except SyntaxError as e:
-            return {'error': f'Syntax error in code: {str(e)}'}
-
-    def _reset_analysis(self) -> None:
-        """Reset analysis state."""
-        self.metrics = {
-            'num_functions': 0,
-            'num_classes': 0,
-            'avg_function_complexity': 0,
-            'avg_line_length': 0,
-            'docstring_coverage': 0
-        }
-        self.suggestions = []
-
-    def _collect_metrics(self, tree: ast.AST) -> None:
-        """Collect code metrics from AST."""
-        # Count functions and classes
-        functions = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]
-        classes = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
-        
-        self.metrics['num_functions'] = len(functions)
-        self.metrics['num_classes'] = len(classes)
-
-        # Calculate cyclomatic complexity
-        complexities = [self._calculate_complexity(func) for func in functions]
-        self.metrics['avg_function_complexity'] = (
-            statistics.mean(complexities) if complexities else 0
+    def __init__(self, code: str):
+        self.code = code
+        self.tree = ast.parse(code)
+    
+    def analyze(self) -> CodeMetrics:
+        """Analyze code and return comprehensive metrics."""
+        metrics = CodeMetrics(
+            cyclomatic_complexity=self._calculate_cyclomatic_complexity(),
+            number_of_lines=self._count_lines(),
+            number_of_functions=self._count_functions(),
+            cognitive_complexity=self._calculate_cognitive_complexity(),
+            maintainability_index=self._calculate_maintainability_index()
         )
+        return metrics
 
-        # Calculate docstring coverage
-        documented = sum(1 for node in functions + classes if ast.get_docstring(node))
-        total = len(functions) + len(classes)
-        self.metrics['docstring_coverage'] = (
-            documented / total * 100 if total > 0 else 0
-        )
-
-    def _calculate_complexity(self, node: ast.AST) -> int:
-        """Calculate cyclomatic complexity of an AST node."""
+    def _calculate_cyclomatic_complexity(self) -> int:
+        """Calculate McCabe's cyclomatic complexity."""
         complexity = 1
-        for child in ast.walk(node):
-            if isinstance(child, (ast.If, ast.While, ast.For, ast.ExceptHandler)):
+        for node in ast.walk(self.tree):
+            if isinstance(node, (ast.If, ast.While, ast.For, ast.Break,
+                               ast.Continue, ast.ExceptHandler)):
                 complexity += 1
-            elif isinstance(child, ast.BoolOp):
-                complexity += len(child.values) - 1
+            elif isinstance(node, ast.BoolOp):
+                complexity += len(node.values) - 1
         return complexity
 
-    def _generate_suggestions(self) -> None:
-        """Generate improvement suggestions based on metrics."""
-        if self.metrics['avg_function_complexity'] > 10:
-            self.suggestions.append(
-                'Consider breaking down complex functions into smaller ones'
-            )
+    def _count_lines(self) -> int:
+        """Count number of non-empty lines."""
+        return len([line for line in self.code.splitlines() if line.strip()])
 
-        if self.metrics['docstring_coverage'] < 80:
-            self.suggestions.append(
-                'Improve documentation coverage by adding docstrings'
-            )
+    def _count_functions(self) -> int:
+        """Count number of function definitions."""
+        return len([node for node in ast.walk(self.tree)
+                   if isinstance(node, ast.FunctionDef)])
 
-        if self.metrics['num_functions'] > 20:
-            self.suggestions.append(
-                'Consider splitting the module into smaller ones'
-            )
+    def _calculate_cognitive_complexity(self) -> int:
+        """Calculate cognitive complexity based on nesting and control flow."""
+        complexity = 0
+        nesting_level = 0
 
-    def get_code_quality_score(self) -> float:
-        """Calculate overall code quality score."""
-        if not self.metrics:
-            return 0.0
+        class CognitiveComplexityVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.complexity = 0
+                self.nesting = 0
 
-        scores = [
-            min(100 - self.metrics['avg_function_complexity'] * 5, 100),
-            self.metrics['docstring_coverage'],
-            100 if self.metrics['num_functions'] < 20 else 80
-        ]
-        return statistics.mean(scores)
+            def visit_If(self, node):
+                self.complexity += 1 + self.nesting
+                self.nesting += 1
+                self.generic_visit(node)
+                self.nesting -= 1
 
-    def format_report(self) -> str:
-        """Format analysis results as a readable report."""
-        if not self.metrics:
-            return 'No analysis results available'
+            def visit_For(self, node):
+                self.complexity += 1 + self.nesting
+                self.nesting += 1
+                self.generic_visit(node)
+                self.nesting -= 1
 
-        report = ['Code Analysis Report', '=' * 20]
-        report.append('\nMetrics:')
-        for metric, value in self.metrics.items():
-            report.append(f'{metric}: {value}')
+            def visit_While(self, node):
+                self.complexity += 1 + self.nesting
+                self.nesting += 1
+                self.generic_visit(node)
+                self.nesting -= 1
 
-        report.append('\nQuality Score:')
-        report.append(f'{self.get_code_quality_score():.1f}/100')
+        visitor = CognitiveComplexityVisitor()
+        visitor.visit(self.tree)
+        return visitor.complexity
 
-        if self.suggestions:
-            report.append('\nSuggestions:')
-            for suggestion in self.suggestions:
-                report.append(f'- {suggestion}')
+    def _calculate_maintainability_index(self) -> float:
+        """Calculate maintainability index based on various metrics."""
+        # Simplified version of the maintainability index formula
+        loc = self._count_lines()
+        cc = self._calculate_cyclomatic_complexity()
+        
+        # MI = 171 - 5.2 * ln(HV) - 0.23 * CC - 16.2 * ln(LOC)
+        # Using simplified version here
+        mi = 171 - (0.23 * cc) - (16.2 * (loc and abs(log(loc)) or 0))
+        return max(0.0, min(100.0, mi))
 
-        return '\n'.join(report)
+    @staticmethod
+    def analyze_file(filepath: str) -> Optional[CodeMetrics]:
+        """Analyze a Python file and return its metrics."""
+        try:
+            with open(filepath, 'r') as f:
+                code = f.read()
+            analyzer = CodeAnalyzer(code)
+            return analyzer.analyze()
+        except Exception as e:
+            print(f"Error analyzing {filepath}: {str(e)}")
+            return None
+
+    @staticmethod
+    def analyze_directory(directory: str) -> Dict[str, CodeMetrics]:
+        """Analyze all Python files in a directory recursively."""
+        results = {}
+        for root, _, files in os.walk(directory):
+            for file in files:
+                if file.endswith('.py'):
+                    filepath = os.path.join(root, file)
+                    metrics = CodeAnalyzer.analyze_file(filepath)
+                    if metrics:
+                        results[filepath] = metrics
+        return results
