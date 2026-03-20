@@ -1,116 +1,143 @@
 import ast
-import os
-from typing import Dict, List, Optional
+import asyncio
+from typing import Dict, List, Optional, Union
 from dataclasses import dataclass
+from collections import defaultdict
+import re
 
 @dataclass
-class CodeMetrics:
-    cyclomatic_complexity: int
-    number_of_lines: int
-    number_of_functions: int
-    cognitive_complexity: int
-    maintainability_index: float
+class CodeAnalysis:
+    complexity: int
+    sentiment: float
+    patterns: Dict[str, int]
+    suggestions: List[str]
 
 class CodeAnalyzer:
-    def __init__(self, code: str):
-        self.code = code
-        self.tree = ast.parse(code)
-    
-    def analyze(self) -> CodeMetrics:
-        """Analyze code and return comprehensive metrics."""
-        metrics = CodeMetrics(
-            cyclomatic_complexity=self._calculate_cyclomatic_complexity(),
-            number_of_lines=self._count_lines(),
-            number_of_functions=self._count_functions(),
-            cognitive_complexity=self._calculate_cognitive_complexity(),
-            maintainability_index=self._calculate_maintainability_index()
-        )
-        return metrics
+    def __init__(self):
+        self.negative_patterns = [
+            r'hack', r'todo', r'fixme', r'workaround',
+            r'temporary', r'legacy', r'deprecated'
+        ]
+        self.positive_patterns = [
+            r'optimize', r'improve', r'enhance', r'clean',
+            r'refactor', r'simplify', r'modernize'
+        ]
 
-    def _calculate_cyclomatic_complexity(self) -> int:
-        """Calculate McCabe's cyclomatic complexity."""
-        complexity = 1
-        for node in ast.walk(self.tree):
-            if isinstance(node, (ast.If, ast.While, ast.For, ast.Break,
-                               ast.Continue, ast.ExceptHandler)):
-                complexity += 1
-            elif isinstance(node, ast.BoolOp):
-                complexity += len(node.values) - 1
-        return complexity
-
-    def _count_lines(self) -> int:
-        """Count number of non-empty lines."""
-        return len([line for line in self.code.splitlines() if line.strip()])
-
-    def _count_functions(self) -> int:
-        """Count number of function definitions."""
-        return len([node for node in ast.walk(self.tree)
-                   if isinstance(node, ast.FunctionDef)])
-
-    def _calculate_cognitive_complexity(self) -> int:
-        """Calculate cognitive complexity based on nesting and control flow."""
-        complexity = 0
-        nesting_level = 0
-
-        class CognitiveComplexityVisitor(ast.NodeVisitor):
-            def __init__(self):
-                self.complexity = 0
-                self.nesting = 0
-
-            def visit_If(self, node):
-                self.complexity += 1 + self.nesting
-                self.nesting += 1
-                self.generic_visit(node)
-                self.nesting -= 1
-
-            def visit_For(self, node):
-                self.complexity += 1 + self.nesting
-                self.nesting += 1
-                self.generic_visit(node)
-                self.nesting -= 1
-
-            def visit_While(self, node):
-                self.complexity += 1 + self.nesting
-                self.nesting += 1
-                self.generic_visit(node)
-                self.nesting -= 1
-
-        visitor = CognitiveComplexityVisitor()
-        visitor.visit(self.tree)
-        return visitor.complexity
-
-    def _calculate_maintainability_index(self) -> float:
-        """Calculate maintainability index based on various metrics."""
-        # Simplified version of the maintainability index formula
-        loc = self._count_lines()
-        cc = self._calculate_cyclomatic_complexity()
+    async def analyze_code(self, code: str) -> CodeAnalysis:
+        """Analyzes code for complexity, patterns and generates suggestions."""
+        tasks = [
+            self._calculate_complexity(code),
+            self._analyze_sentiment(code),
+            self._detect_patterns(code)
+        ]
+        complexity, sentiment, patterns = await asyncio.gather(*tasks)
+        suggestions = await self._generate_suggestions(complexity, sentiment, patterns)
         
-        # MI = 171 - 5.2 * ln(HV) - 0.23 * CC - 16.2 * ln(LOC)
-        # Using simplified version here
-        mi = 171 - (0.23 * cc) - (16.2 * (loc and abs(log(loc)) or 0))
-        return max(0.0, min(100.0, mi))
+        return CodeAnalysis(
+            complexity=complexity,
+            sentiment=sentiment,
+            patterns=patterns,
+            suggestions=suggestions
+        )
 
-    @staticmethod
-    def analyze_file(filepath: str) -> Optional[CodeMetrics]:
-        """Analyze a Python file and return its metrics."""
+    async def _calculate_complexity(self, code: str) -> int:
+        """Calculate cyclomatic complexity of the code."""
         try:
-            with open(filepath, 'r') as f:
-                code = f.read()
-            analyzer = CodeAnalyzer(code)
-            return analyzer.analyze()
-        except Exception as e:
-            print(f"Error analyzing {filepath}: {str(e)}")
-            return None
+            tree = ast.parse(code)
+            visitor = ComplexityVisitor()
+            visitor.visit(tree)
+            return visitor.complexity
+        except:
+            return 0
 
-    @staticmethod
-    def analyze_directory(directory: str) -> Dict[str, CodeMetrics]:
-        """Analyze all Python files in a directory recursively."""
-        results = {}
-        for root, _, files in os.walk(directory):
-            for file in files:
-                if file.endswith('.py'):
-                    filepath = os.path.join(root, file)
-                    metrics = CodeAnalyzer.analyze_file(filepath)
-                    if metrics:
-                        results[filepath] = metrics
-        return results
+    async def _analyze_sentiment(self, code: str) -> float:
+        """Analyze code sentiment based on patterns and comments."""
+        sentiment = 0.0
+        
+        # Analyze comments
+        comments = re.findall(r'#.*$', code, re.MULTILINE)
+        for comment in comments:
+            sentiment += sum(1 for p in self.positive_patterns if re.search(p, comment.lower()))
+            sentiment -= sum(1 for p in self.negative_patterns if re.search(p, comment.lower()))
+
+        # Analyze variable names and function names
+        names = re.findall(r'\b(?:def|class|var)\s+([a-zA-Z_]\w*)', code)
+        for name in names:
+            sentiment += 0.5 if any(p in name.lower() for p in ['good', 'better', 'best', 'improve'])
+            sentiment -= 0.5 if any(p in name.lower() for p in ['temp', 'hack', 'fix'])
+
+        return sentiment
+
+    async def _detect_patterns(self, code: str) -> Dict[str, int]:
+        """Detect common code patterns and anti-patterns."""
+        patterns = defaultdict(int)
+        
+        # Detect long functions
+        functions = re.finditer(r'def\s+\w+\s*\([^)]*\):\s*(?:[^\n]*\n+)+', code)
+        for func in functions:
+            lines = func.group().count('\n')
+            if lines > 20:
+                patterns['long_functions'] += 1
+
+        # Detect nested loops
+        nested_loops = len(re.findall(r'\s*for.*:\s*\n+\s*for.*:', code))
+        patterns['nested_loops'] = nested_loops
+
+        # Detect large try-except blocks
+        try_blocks = re.finditer(r'try:\s*(?:[^\n]*\n+)+', code)
+        for block in try_blocks:
+            lines = block.group().count('\n')
+            if lines > 15:
+                patterns['large_try_blocks'] += 1
+
+        return dict(patterns)
+
+    async def _generate_suggestions(self
+        self, complexity: int,
+        sentiment: float,
+        patterns: Dict[str, int]
+    ) -> List[str]:
+        """Generate improvement suggestions based on analysis."""
+        suggestions = []
+
+        if complexity > 10:
+            suggestions.append(
+                'Consider breaking down complex functions into smaller, more manageable pieces'
+            )
+
+        if patterns.get('long_functions', 0) > 0:
+            suggestions.append(
+                'Some functions are too long. Consider extracting functionality into helper methods'
+            )
+
+        if patterns.get('nested_loops', 0) > 0:
+            suggestions.append(
+                'Nested loops detected. Consider restructuring to improve performance'
+            )
+
+        if sentiment < 0:
+            suggestions.append(
+                'Code contains several temporary solutions or workarounds. Consider proper refactoring'
+            )
+
+        return suggestions
+
+class ComplexityVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.complexity = 1
+
+    def visit_If(self, node):
+        self.complexity += 1
+        self.generic_visit(node)
+
+    def visit_While(self, node):
+        self.complexity += 1
+        self.generic_visit(node)
+
+    def visit_For(self, node):
+        self.complexity += 1
+        self.generic_visit(node)
+
+    def visit_ExceptHandler(self, node):
+        self.complexity += 1
+        self.generic_visit(node)
