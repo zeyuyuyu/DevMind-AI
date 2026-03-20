@@ -1,116 +1,125 @@
-"""DevMind AI code analyzer module for generating insights and metrics."""
+"""DevMind AI code analyzer module for measuring code quality metrics."""
 
 import ast
-import os
-from collections import defaultdict
-from typing import Dict, List, Tuple
+import math
+from typing import Dict, List, Optional
 
 class CodeAnalyzer:
-    def __init__(self, project_path: str):
-        self.project_path = project_path
-        self.metrics = defaultdict(dict)
-        self.insights = []
-
-    def analyze_project(self) -> Tuple[Dict, List[str]]:
-        """Analyze entire project and generate metrics and insights."""
-        for root, _, files in os.walk(self.project_path):
-            for file in files:
-                if file.endswith('.py'):
-                    filepath = os.path.join(root, file)
-                    self._analyze_file(filepath)
+    def __init__(self, code: str):
+        self.code = code
+        self.ast_tree = ast.parse(code)
         
-        self._generate_insights()
-        return dict(self.metrics), self.insights
-
-    def _analyze_file(self, filepath: str) -> None:
-        """Analyze a single Python file for various metrics."""
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                code = f.read()
-            
-            tree = ast.parse(code)
-            analyzer = ASTAnalyzer()
-            analyzer.visit(tree)
-            
-            rel_path = os.path.relpath(filepath, self.project_path)
-            self.metrics[rel_path] = {
-                'loc': len(code.splitlines()),
-                'functions': analyzer.function_count,
-                'classes': analyzer.class_count,
-                'complexity': analyzer.complexity,
-                'imports': len(analyzer.imports),
-                'docstring_coverage': analyzer.docstring_coverage
-            }
-        except Exception as e:
-            print(f'Error analyzing {filepath}: {str(e)}')
-
-    def _generate_insights(self) -> None:
-        """Generate insights based on collected metrics."""
-        self.insights = []
-        
-        # Identify complex files
-        for filepath, metrics in self.metrics.items():
-            if metrics['complexity'] > 10:
-                self.insights.append(
-                    f'High complexity in {filepath} (score: {metrics["complexity"]}). '
-                    'Consider refactoring into smaller functions.'
-                )
-            
-            if metrics['docstring_coverage'] < 0.5:
-                self.insights.append(
-                    f'Low documentation coverage in {filepath} '
-                    f'({metrics["docstring_coverage"]*100:.1f}%). Add more docstrings.'
-                )
-
-class ASTAnalyzer(ast.NodeVisitor):
-    """AST visitor to collect code metrics."""
+    def analyze(self) -> Dict[str, float]:
+        """Analyze code and return various complexity metrics."""
+        metrics = {
+            'cyclomatic_complexity': self.calculate_cyclomatic_complexity(),
+            'maintainability_index': self.calculate_maintainability_index(),
+            'cognitive_complexity': self.calculate_cognitive_complexity(),
+            'lines_of_code': len(self.code.splitlines())
+        }
+        return metrics
     
-    def __init__(self):
-        self.function_count = 0
-        self.class_count = 0
-        self.complexity = 0
-        self.imports = set()
-        self.has_docstring = 0
-        self.needs_docstring = 0
-
-    def visit_FunctionDef(self, node):
-        """Analyze function definitions."""
-        self.function_count += 1
-        self.needs_docstring += 1
-        if ast.get_docstring(node):
-            self.has_docstring += 1
-        self.complexity += self._count_branches(node)
-        self.generic_visit(node)
-
-    def visit_ClassDef(self, node):
-        """Analyze class definitions."""
-        self.class_count += 1
-        self.needs_docstring += 1
-        if ast.get_docstring(node):
-            self.has_docstring += 1
-        self.generic_visit(node)
-
-    def visit_Import(self, node):
-        """Track import statements."""
-        for name in node.names:
-            self.imports.add(name.name)
-
-    def visit_ImportFrom(self, node):
-        """Track from-import statements."""
-        if node.module:
-            self.imports.add(node.module)
-
-    def _count_branches(self, node) -> int:
-        """Count branching statements to estimate complexity."""
-        count = 0
-        for child in ast.walk(node):
-            if isinstance(child, (ast.If, ast.While, ast.For, ast.Try)):
-                count += 1
-        return count
-
-    @property
-    def docstring_coverage(self) -> float:
-        """Calculate docstring coverage ratio."""
-        if self.needs_docstring == 0:
-            return 1.0
-        return self.has_docstring / self.needs_docstring
+    def calculate_cyclomatic_complexity(self) -> int:
+        """Calculate McCabe's cyclomatic complexity."""
+        complexity = 1  # Base complexity
+        
+        class ComplexityVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.complexity = 0
+                
+            def visit_If(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+                
+            def visit_While(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+                
+            def visit_For(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+                
+            def visit_Try(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+                
+            def visit_ExceptHandler(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+                
+            def visit_BoolOp(self, node):
+                self.complexity += len(node.values) - 1
+                self.generic_visit(node)
+        
+        visitor = ComplexityVisitor()
+        visitor.visit(self.ast_tree)
+        return complexity + visitor.complexity
+    
+    def calculate_maintainability_index(self) -> float:
+        """Calculate maintainability index based on Halstead Volume and cyclomatic complexity."""
+        halstead_volume = self._calculate_halstead_volume()
+        cyclomatic = self.calculate_cyclomatic_complexity()
+        loc = len(self.code.splitlines())
+        
+        mi = 171 - 5.2 * math.log(halstead_volume) - 0.23 * cyclomatic - 16.2 * math.log(loc)
+        return max(0, min(100, mi))  # Normalize between 0 and 100
+    
+    def calculate_cognitive_complexity(self) -> int:
+        """Calculate cognitive complexity based on nested control flow structures."""
+        class CognitiveComplexityVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.complexity = 0
+                self.nesting_level = 0
+                
+            def visit_If(self, node):
+                self.complexity += (1 + self.nesting_level)
+                self.nesting_level += 1
+                self.generic_visit(node)
+                self.nesting_level -= 1
+                
+            def visit_While(self, node):
+                self.complexity += (1 + self.nesting_level)
+                self.nesting_level += 1
+                self.generic_visit(node)
+                self.nesting_level -= 1
+                
+            def visit_For(self, node):
+                self.complexity += (1 + self.nesting_level)
+                self.nesting_level += 1
+                self.generic_visit(node)
+                self.nesting_level -= 1
+        
+        visitor = CognitiveComplexityVisitor()
+        visitor.visit(self.ast_tree)
+        return visitor.complexity
+    
+    def _calculate_halstead_volume(self) -> float:
+        """Helper method to calculate Halstead Volume metric."""
+        class HalsteadVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.operators = set()
+                self.operands = set()
+                
+            def visit_BinOp(self, node):
+                self.operators.add(type(node.op).__name__)
+                self.generic_visit(node)
+                
+            def visit_Name(self, node):
+                self.operands.add(node.id)
+                self.generic_visit(node)
+                
+            def visit_Num(self, node):
+                self.operands.add(str(node.n))
+                self.generic_visit(node)
+        
+        visitor = HalsteadVisitor()
+        visitor.visit(self.ast_tree)
+        
+        n1 = len(visitor.operators)
+        n2 = len(visitor.operands)
+        if n1 == 0 or n2 == 0:
+            return 0
+        
+        N = n1 + n2
+        n = len(visitor.operators) + len(visitor.operands)
+        return N * math.log2(n) if n > 0 else 0
