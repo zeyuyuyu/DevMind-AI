@@ -1,43 +1,64 @@
 # devmind_ai/analyzer.py
-import numpy as np
-from collections import defaultdict
 
-class MultiAgentSwarmAnalyzer:
-    def __init__(self, agent_states):
-        self.agent_states = agent_states
-        self.agent_clusters = self.cluster_agents()
-        self.cluster_metrics = self.analyze_clusters()
+import os
+import json
+import requests
+from typing import List, Dict
 
-    def cluster_agents(self):
-        agent_clusters = defaultdict(list)
-        for agent_id, state in self.agent_states.items():
-            cluster_id = self.assign_cluster(state)
-            agent_clusters[cluster_id].append(agent_id)
-        return agent_clusters
+class SwarmAnalyzer:
+    def __init__(self, agents: List[Dict]):
+        self.agents = agents
+        self.coordination_hub = 'https://devmind-ai.com/coordination'
 
-    def assign_cluster(self, agent_state):
-        # Implement clustering algorithm based on agent state
-        # e.g., k-means, DBSCAN, etc.
-        cluster_id = hash(tuple(agent_state.values())) % 10
-        return cluster_id
+    def analyze_swarm(self) -> Dict:
+        """Analyze the current state of the agent swarm."""
+        swarm_data = {
+            'agent_count': len(self.agents),
+            'active_agents': self.count_active_agents(),
+            'resource_usage': self.aggregate_resource_usage(),
+            'task_completion': self.assess_task_completion()
+        }
+        return swarm_data
 
-    def analyze_clusters(self):
-        cluster_metrics = {}
-        for cluster_id, agent_ids in self.agent_clusters.items():
-            cluster_metrics[cluster_id] = {
-                'size': len(agent_ids),
-                'centroid': self.calculate_centroid(agent_ids),
-                'dispersion': self.calculate_dispersion(agent_ids)
-            }
-        return cluster_metrics
+    def count_active_agents(self) -> int:
+        """Count the number of active agents in the swarm."""
+        active_agents = 0
+        for agent in self.agents:
+            if agent['status'] == 'active':
+                active_agents += 1
+        return active_agents
 
-    def calculate_centroid(self, agent_ids):
-        states = [self.agent_states[agent_id] for agent_id in agent_ids]
-        return np.mean(states, axis=0)
+    def aggregate_resource_usage(self) -> Dict:
+        """Aggregate resource usage across the agent swarm."""
+        total_cpu = 0
+        total_memory = 0
+        for agent in self.agents:
+            total_cpu += agent['cpu_usage']
+            total_memory += agent['memory_usage']
+        return {
+            'total_cpu': total_cpu,
+            'total_memory': total_memory
+        }
 
-    def calculate_dispersion(self, agent_ids):
-        states = [self.agent_states[agent_id] for agent_id in agent_ids]
-        return np.std(states, axis=0)
+    def assess_task_completion(self) -> Dict:
+        """Assess the overall task completion rate of the agent swarm."""
+        total_tasks = 0
+        completed_tasks = 0
+        for agent in self.agents:
+            total_tasks += agent['total_tasks']
+            completed_tasks += agent['completed_tasks']
+        task_completion_rate = completed_tasks / total_tasks if total_tasks > 0 else 0
+        return {
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'task_completion_rate': task_completion_rate
+        }
 
-    def get_cluster_metrics(self):
-        return self.cluster_metrics
+    def coordinate_swarm(self) -> None:
+        """Coordinate the agent swarm based on the analysis."""
+        swarm_data = self.analyze_swarm()
+        response = requests.post(self.coordination_hub, json=swarm_data)
+        if response.status_code == 200:
+            print('Swarm coordination successful.')
+        else:
+            print('Swarm coordination failed.')
