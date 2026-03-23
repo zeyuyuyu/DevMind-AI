@@ -3,228 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevMind AI - Code Analysis Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #6366f1;
-            --secondary: #4f46e5;
-            --background: #0f172a;
-            --surface: #1e293b;
-            --text: #e2e8f0;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--background);
-            color: var(--text);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: glow 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes glow {
-            from {
-                text-shadow: 0 0 10px var(--primary);
-            }
-            to {
-                text-shadow: 0 0 20px var(--secondary);
-            }
-        }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-
-        .card {
-            background: var(--surface);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            transition: transform 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        .dropzone {
-            border: 2px dashed var(--primary);
-            border-radius: 1rem;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .dropzone:hover {
-            background: rgba(99, 102, 241, 0.1);
-        }
-
-        .metrics {
-            margin-top: 2rem;
-        }
-
-        .metric {
-            margin: 1rem 0;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 0.5rem;
-        }
-
-        .progress-bar {
-            height: 8px;
-            background: var(--surface);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-
-        .progress {
-            height: 100%;
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            width: 0;
-            transition: width 1s ease;
-        }
-
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        button:hover {
-            background: var(--secondary);
-            transform: scale(1.05);
-        }
-    </style>
+    <title>DevMind AI - Your Coding Companion</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>DevMind AI</h1>
-            <p>Intelligent Code Analysis Dashboard</p>
-        </header>
-
-        <div class="dashboard">
-            <div class="card">
-                <h2>Code Analysis</h2>
-                <div class="dropzone" id="dropzone">
-                    <p>Drag and drop your code files here</p>
-                    <p>or</p>
-                    <button onclick="document.getElementById('fileInput').click()">Browse Files</button>
-                    <input type="file" id="fileInput" hidden multiple>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>Quality Metrics</h2>
-                <div class="metrics">
-                    <div class="metric">
-                        <label>Code Complexity</label>
-                        <div class="progress-bar">
-                            <div class="progress" id="complexityProgress"></div>
-                        </div>
-                    </div>
-                    <div class="metric">
-                        <label>Maintainability</label>
-                        <div class="progress-bar">
-                            <div class="progress" id="maintainabilityProgress"></div>
-                        </div>
-                    </div>
-                    <div class="metric">
-                        <label>Test Coverage</label>
-                        <div class="progress-bar">
-                            <div class="progress" id="coverageProgress"></div>
-                        </div>
-                    </div>
-                </div>
+<body class="bg-gray-900 text-white">
+    <div id="app" class="min-h-screen">
+        <!-- Floating AI Assistant Avatar -->
+        <div class="fixed bottom-4 right-4 animate__animated animate__bounceIn">
+            <div class="relative">
+                <img src="https://api.dicebear.com/6.x/bottts/svg?seed=DevMind" class="w-16 h-16 rounded-full border-2 border-purple-500 cursor-pointer hover:scale-110 transition-transform" @click="toggleAIChat">
+                <div class="absolute -top-2 -right-2 bg-green-500 w-4 h-4 rounded-full animate-pulse"></div>
             </div>
         </div>
+
+        <!-- AI Chat Interface -->
+        <div id="ai-chat" class="fixed bottom-24 right-4 w-80 bg-gray-800 rounded-lg shadow-xl p-4 hidden">
+            <div class="flex items-center mb-4">
+                <img src="https://api.dicebear.com/6.x/bottts/svg?seed=DevMind" class="w-8 h-8 rounded-full mr-2">
+                <div>
+                    <h3 class="font-bold">DevMind</h3>
+                    <p class="text-xs text-gray-400">Your AI Coding Buddy</p>
+                </div>
+            </div>
+            <div class="h-64 overflow-y-auto mb-4 bg-gray-900 rounded p-2" id="chat-messages"></div>
+            <input type="text" class="w-full bg-gray-700 rounded px-3 py-2" placeholder="Ask me anything...">
+        </div>
+
+        <!-- Main Content -->
+        <nav class="bg-gray-800 p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">DevMind AI</h1>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm">🏆 Level 5</span>
+                    <div class="bg-gray-700 rounded-full h-2 w-32">
+                        <div class="bg-purple-500 h-2 rounded-full" style="width: 45%"></div>
+                    </div>
+                    <span class="text-sm">⭐ 230 Points</span>
+                </div>
+            </div>
+        </nav>
+
+        <main class="container mx-auto p-4">
+            <!-- Code Analysis Section -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-gray-800 rounded-lg p-6 transform hover:scale-105 transition-transform">
+                    <h2 class="text-xl font-bold mb-4">🚀 Code Analysis</h2>
+                    <div class="relative">
+                        <textarea class="w-full h-48 bg-gray-900 rounded p-3 font-mono text-sm" placeholder="Paste your code here..."></textarea>
+                        <div class="absolute top-2 right-2">
+                            <span class="bg-purple-500 text-xs px-2 py-1 rounded">Smart Analysis™</span>
+                        </div>
+                    </div>
+                    <button class="mt-4 bg-purple-500 hover:bg-purple-600 px-6 py-2 rounded-full font-bold transition-colors">Analyze</button>
+                </div>
+
+                <!-- Social Feed -->
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h2 class="text-xl font-bold mb-4">👥 Community Highlights</h2>
+                    <div class="space-y-4">
+                        <div class="bg-gray-900 rounded p-4">
+                            <div class="flex items-center mb-2">
+                                <img src="https://api.dicebear.com/6.x/personas/svg?seed=Alex" class="w-8 h-8 rounded-full mr-2">
+                                <div>
+                                    <p class="font-bold">Alex_Dev</p>
+                                    <p class="text-xs text-gray-400">Improved code quality by 85% 🎉</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-sm mt-2">
+                                <button class="text-purple-400 hover:text-purple-300">👏 Applaud (23)</button>
+                                <button class="text-gray-400 hover:text-gray-300">💬 Comment</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements Section -->
+            <div class="mt-8 bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">🏆 Recent Achievements</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-gray-900 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">🎯</div>
+                        <h3 class="font-bold">Code Master</h3>
+                        <p class="text-xs text-gray-400">Analyzed 100 code snippets</p>
+                    </div>
+                    <div class="bg-gray-900 rounded-lg p-4 text-center opacity-50">
+                        <div class="text-3xl mb-2">⚡</div>
+                        <h3 class="font-bold">Speed Demon</h3>
+                        <p class="text-xs text-gray-400">Complete analysis in 5 seconds</p>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
-        // Dropzone functionality
-        const dropzone = document.getElementById('dropzone');
-        const fileInput = document.getElementById('fileInput');
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, preventDefaults, false);
+        // Add interactive features
+        document.querySelector('.cursor-pointer').addEventListener('click', () => {
+            document.getElementById('ai-chat').classList.toggle('hidden');
         });
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropzone.addEventListener(eventName, highlight, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, unhighlight, false);
-        });
-
-        function highlight(e) {
-            dropzone.classList.add('border-primary');
-        }
-
-        function unhighlight(e) {
-            dropzone.classList.remove('border-primary');
-        }
-
-        dropzone.addEventListener('drop', handleDrop, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
-
-        fileInput.addEventListener('change', function(e) {
-            handleFiles(this.files);
-        });
-
-        function handleFiles(files) {
-            // Simulate analysis with random progress
-            animateProgress('complexityProgress', Math.random() * 100);
-            animateProgress('maintainabilityProgress', Math.random() * 100);
-            animateProgress('coverageProgress', Math.random() * 100);
-        }
-
-        function animateProgress(id, value) {
-            const progress = document.getElementById(id);
-            progress.style.width = value + '%';
-        }
+        // Simulate chat messages
+        const messages = document.getElementById('chat-messages');
+        setTimeout(() => {
+            messages.innerHTML += '<div class="mb-2"><strong class="text-purple-400">DevMind:</strong> Hey there! Need help with your code? I'm here to assist! 😊</div>';
+        }, 1000);
     </script>
 </body>
 </html>
