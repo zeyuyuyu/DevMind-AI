@@ -3,133 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevMind AI - Code Battles & Learning</title>
+    <title>DevMind AI - Social Coding Battles</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
-<body class="bg-gradient-to-br from-gray-900 to-black text-white min-h-screen">
-    <!-- Floating Achievement Notifications -->
-    <div id="achievements" class="fixed top-5 right-5 z-50"></div>
-
-    <!-- Main Header with Gamification Elements -->
-    <header class="p-4 border-b border-gray-800">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-4">
-                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">DevMind AI</h1>
-                <div class="flex items-center bg-gray-800 rounded-full px-4 py-2">
-                    <span class="text-yellow-400 mr-2">⭐</span>
-                    <span id="userScore">2,459</span>
-                    <span class="ml-2 text-sm text-gray-400">points</span>
-                </div>
-            </div>
-            <div class="flex items-center space-x-4">
-                <button class="px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-all" onclick="startBattle()">⚔️ Start Battle</button>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4">
+        <!-- Gamified Header with User Stats -->
+        <header class="py-6 flex justify-between items-center">
+            <div class="flex items-center gap-4">
                 <div class="relative">
-                    <img src="https://api.dicebear.com/6.x/avatars/svg?seed=Felix" class="w-10 h-10 rounded-full cursor-pointer" onclick="toggleProfile()">
-                    <div class="absolute top-0 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-900"></div>
+                    <img id="userAvatar" class="w-12 h-12 rounded-full border-2 border-purple-500" src="https://api.dicebear.com/6.x/avataaars/svg?seed=Felix" alt="User Avatar">
+                    <span class="absolute -top-1 -right-1 bg-green-500 rounded-full w-4 h-4 border-2 border-gray-900"></span>
                 </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Battle Arena -->
-    <main class="container mx-auto p-4">
-        <div class="grid md:grid-cols-2 gap-8">
-            <!-- Left Panel: Your Code -->
-            <div class="bg-gray-800 rounded-xl p-6 animate__animated animate__fadeInLeft">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold">Your Code</h2>
-                    <div class="flex space-x-2">
-                        <span class="px-3 py-1 bg-blue-600 rounded-full text-sm">Level 23</span>
-                        <span class="px-3 py-1 bg-green-600 rounded-full text-sm">Win Rate: 76%</span>
-                    </div>
-                </div>
-                <div class="relative">
-                    <textarea id="userCode" class="w-full h-96 bg-gray-900 rounded-lg p-4 font-mono text-green-400" placeholder="Write your code here..."></textarea>
-                    <button class="absolute bottom-4 right-4 px-6 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition-all">Run Code</button>
-                </div>
-            </div>
-
-            <!-- Right Panel: AI Opponent -->
-            <div class="bg-gray-800 rounded-xl p-6 animate__animated animate__fadeInRight">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold">AI Opponent</h2>
-                    <div class="flex space-x-2">
-                        <span class="px-3 py-1 bg-red-600 rounded-full text-sm">Master Level</span>
-                        <div class="animate-pulse px-3 py-1 bg-gray-700 rounded-full text-sm">Thinking...</div>
-                    </div>
-                </div>
-                <div class="relative">
-                    <pre class="w-full h-96 bg-gray-900 rounded-lg p-4 font-mono text-blue-400 overflow-auto">// AI is analyzing your approach...</pre>
-                </div>
-            </div>
-        </div>
-
-        <!-- Battle Results & Social Sharing -->
-        <div class="mt-8 bg-gray-800 rounded-xl p-6">
-            <h3 class="text-xl font-bold mb-4">Battle Results</h3>
-            <div class="grid grid-cols-3 gap-4 mb-6">
-                <div class="bg-gray-900 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-green-400">98%</div>
-                    <div class="text-sm text-gray-400">Code Quality</div>
-                </div>
-                <div class="bg-gray-900 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-yellow-400">+125</div>
-                    <div class="text-sm text-gray-400">Points Earned</div>
-                </div>
-                <div class="bg-gray-900 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-purple-400">#12</div>
-                    <div class="text-sm text-gray-400">Global Ranking</div>
-                </div>
-            </div>
-            <div class="flex justify-center space-x-4">
-                <button class="px-6 py-3 bg-blue-600 rounded-lg hover:bg-blue-700 transition-all flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
-                    Share Battle
-                </button>
-                <button class="px-6 py-3 bg-green-600 rounded-lg hover:bg-green-700 transition-all flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm3 8h-1.35c-.538 0-.65.221-.65.778V10h2l-.209 2H13v7h-3v-7H8v-2h2V7.692C10 5.923 10.931 5 13.029 5H15v3z"/></svg>
-                    Challenge Friends
-                </button>
-            </div>
-        </div>
-    </main>
-
-    <!-- Achievement Animation Template -->
-    <template id="achievement-template">
-        <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg mb-4 animate__animated animate__fadeInRight">
-            <div class="flex items-center">
-                <span class="text-2xl mr-3">🏆</span>
                 <div>
-                    <h4 class="font-bold">Achievement Unlocked!</h4>
-                    <p class="text-sm">Code Master: Write 10 Perfect Solutions</p>
+                    <h3 class="font-bold text-xl">Level 12 Code Warrior</h3>
+                    <div class="flex items-center gap-2">
+                        <div class="h-2 w-32 bg-gray-700 rounded-full">
+                            <div class="h-2 w-3/4 bg-purple-500 rounded-full animate-pulse"></div>
+                        </div>
+                        <span class="text-sm text-gray-400">750/1000 XP</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="px-4 py-2 bg-purple-600 rounded-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.616a1 1 0 01.894-1.79l1.599.8L9 4.323V3a1 1 0 011-1z"/></svg>
+                    <span class="font-bold">2,450</span>
+                </div>
+                <button class="px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition-colors">Start Battle</button>
+            </div>
+        </header>
+
+        <!-- Daily Challenges & Achievements -->
+        <section class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-2xl font-bold mb-4">Daily Challenges</h2>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-4 bg-gray-700 rounded-lg hover:bg-gray-600 cursor-pointer transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold">Speed Optimization</h4>
+                                <p class="text-sm text-gray-400">Optimize 3 code snippets</p>
+                            </div>
+                        </div>
+                        <div class="text-yellow-500 font-bold">+200 XP</div>
+                    </div>
+                    <div class="flex items-center justify-between p-4 bg-gray-700 rounded-lg hover:bg-gray-600 cursor-pointer transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold">Security Master</h4>
+                                <p class="text-sm text-gray-400">Fix 5 security vulnerabilities</p>
+                            </div>
+                        </div>
+                        <div class="text-purple-500 font-bold">+350 XP</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-2xl font-bold mb-4">Recent Achievements</h2>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="group relative">
+                        <div class="w-full aspect-square rounded-lg bg-gray-700 flex items-center justify-center hover:bg-gray-600 transition-colors cursor-help">
+                            <img src="https://img.icons8.com/color/96/000000/trophy.png" class="w-12 h-12">
+                        </div>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-700 rounded text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                            First Blood: Won your first code battle
+                        </div>
+                    </div>
+                    <!-- Add more achievements -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Global Leaderboard -->
+        <section class="mt-8 bg-gray-800 rounded-xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Global Rankings</h2>
+                <div class="flex gap-2">
+                    <button class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">Daily</button>
+                    <button class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">Weekly</button>
+                    <button class="px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors">All Time</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-purple-600 bg-opacity-20 rounded-lg border border-purple-500">
+                    <div class="flex items-center gap-4">
+                        <span class="text-2xl font-bold text-purple-500">#1</span>
+                        <img class="w-10 h-10 rounded-full" src="https://api.dicebear.com/6.x/avataaars/svg?seed=John" alt="Top Player">
+                        <span class="font-semibold">CodeNinja</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-purple-500">125,430 XP</span>
+                        <span class="px-3 py-1 bg-purple-500 rounded-full text-sm">Level 42</span>
+                    </div>
+                </div>
+                <!-- Add more leaderboard entries -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Battle Modal -->
+    <div id="battleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg animate__animated animate__fadeInUp">
+            <h2 class="text-2xl font-bold mb-4">Code Battle</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <img class="w-10 h-10 rounded-full" src="https://api.dicebear.com/6.x/avataaars/svg?seed=You" alt="Your Avatar">
+                        <span class="font-semibold">You</span>
+                    </div>
+                    <div class="text-2xl font-bold">VS</div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-semibold">Opponent</span>
+                        <img class="w-10 h-10 rounded-full" src="https://api.dicebear.com/6.x/avataaars/svg?seed=Opponent" alt="Opponent Avatar">
+                    </div>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-sm"><code>// Fix this code to win!
+function brokenSort(arr) {
+    return arr.sort()  // Bug: Doesn't handle numbers correctly
+}</code></pre>
+                </div>
+                <div class="flex gap-4">
+                    <button class="flex-1 px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors">Submit Solution</button>
+                    <button class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">Forfeit</button>
                 </div>
             </div>
         </div>
-    </template>
+    </div>
 
     <script>
-        function startBattle() {
-            // Simulate battle start animation
-            document.querySelector('main').classList.add('animate__animated', 'animate__pulse');
-            setTimeout(() => {
-                document.querySelector('main').classList.remove('animate__animated', 'animate__pulse');
-                showAchievement();
-            }, 1000);
-        }
-
-        function showAchievement() {
-            const template = document.querySelector('#achievement-template');
-            const achievement = template.content.cloneNode(true);
-            document.getElementById('achievements').appendChild(achievement);
-            setTimeout(() => {
-                document.getElementById('achievements').firstChild.remove();
-            }, 3000);
-        }
-
-        function toggleProfile() {
-            // Profile toggle logic
-        }
+        // Add interactive features and animations
+        document.querySelector('button:contains("Start Battle")').addEventListener('click', () => {
+            document.getElementById('battleModal').classList.remove('hidden');
+            document.getElementById('battleModal').classList.add('flex');
+        });
     </script>
 </body>
 </html>
